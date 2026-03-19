@@ -209,6 +209,15 @@ docker-compose up -d
   ```
   Sets `returnHtml: true`.
 
+### Environment Variables
+
+- **`FETCHER_NETWORK_IDLE_TIMEOUT`**: Timeout in milliseconds for waiting network idle state (default: `0`, disabled). For SPA pages like GitHub that load content dynamically, you may want to enable this:
+
+  ```bash
+  export FETCHER_NETWORK_IDLE_TIMEOUT=3000
+  npx fetcher-mcp
+  ```
+
 ### Debugging and Authentication
 
 #### Enabling Debug Mode

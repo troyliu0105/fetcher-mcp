@@ -142,17 +142,46 @@ export class WebContentProcessor {
 
   // Added method: Ensure page stability
   private async ensurePageStability(page: any): Promise<void> {
+    const networkIdleTimeout = parseInt(process.env.FETCHER_NETWORK_IDLE_TIMEOUT || '0', 10);
+    
     try {
-      // Check if there are ongoing network requests or navigation
       await page.waitForFunction(
-        () => {
-          return window.document.readyState === 'complete';
-        }, 
+        () => document.readyState === 'complete',
         { timeout: this.options.timeout }
       );
       
-      // Wait an extra short time to ensure page stability
-      await page.waitForTimeout(500);
+      await new Promise(r => setTimeout(r, 100));
+      
+      let contentReady = false;
+      
+      if (networkIdleTimeout > 0) {
+        try {
+          await page.waitForLoadState('networkidle', { timeout: networkIdleTimeout });
+          contentReady = true;
+          logger.info(`${this.logPrefix} Network idle reached`);
+        } catch {
+          logger.debug(`${this.logPrefix} Network idle not reached`);
+        }
+      }
+      
+      if (!contentReady) {
+        const contentSelectors = ['article', '.markdown-body', 'main', '[role="main"]'];
+        for (const selector of contentSelectors) {
+          try {
+            await page.waitForFunction(
+              (sel: string) => {
+                const el = document.querySelector(sel);
+                return el && el.textContent && el.textContent.trim().length > 100;
+              },
+              selector,
+              { timeout: 2000 }
+            );
+            logger.debug(`${this.logPrefix} Content ready in: ${selector}`);
+            contentReady = true;
+            break;
+          } catch {}
+        }
+      }
       
       logger.info(`${this.logPrefix} Page has stabilized`);
     } catch (error) {
